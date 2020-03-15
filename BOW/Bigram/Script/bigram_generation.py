@@ -17,10 +17,12 @@ def read_doc_as_pandasDF(filename):
     documents = data_text
 
     return(documents)
+
 def punctuation_remover(text):
     BENGALI_PUNCTUATION = string.punctuation + "—।’‘"
     BENGALI_NUMERALS = "০১২৩৪৫৬৭৮৯"
     return text.translate(str.maketrans(' ', ' ', BENGALI_PUNCTUATION+BENGALI_NUMERALS))
+
 def load_stop_word(doc_dir = r"Preprocessing\stopword-dictionary.docx"):
 
     stop_directory = doc_dir
@@ -101,7 +103,24 @@ def write_sentence_to_csv(sentence_list, SENTENCE_LIST_CSV_DIR):
     sentence_df.to_csv(SENTENCE_LIST_CSV_DIR, sep=',',index=False)
 
     return
+def preprocess_bigram_sentence(docs):
 
+    sentence_stream = []
+
+    stop_words = load_stop_word()
+
+    for doc in docs:
+
+        doc_token = []
+
+        if isinstance(doc, str):
+            for token in punctuation_remover(doc).split():
+                if token not in stop_words and len(token) >= 3:
+                    doc_token.append(token)
+
+        sentence_stream.append(doc_token)
+
+    return sentence_stream
 def get_bigram_list(full_sentence_list, stem = False):
     sentence_stream = [doc.split(" ") for doc in full_sentence_list]
     #print(sentence_stream)
@@ -147,20 +166,66 @@ if __name__ == "__main__":
 
     sentence_list = get_sentence_list(smaller_documents)
 
-    print("="*30)
+    #Remove Punctuation from Each Sentence
+    punctuation_removed_full_sentence_list = [punctuation_remover(every_sentence) for every_sentence in full_sentence_list]
 
-    print(len(sentence_list))
+    #Remove Stop word
+    stop_removed_sentence_stream = preprocess_bigram_sentence(punctuation_removed_full_sentence_list)
 
-    non_stemmed_bigram_list = get_bigram_list(sentence_list)
-    stemmed_bigram_list = get_bigram_list(sentence_list, stem=True)
+    #print(stop_removed_sentence_stream[:10])
 
-    with open("test_bow_bigram_stemmed.csv", "w", newline="", encoding="utf-8") as f:
+
+    minimal_sentence_stream = stop_removed_sentence_stream
+    bigram = Phrases(minimal_sentence_stream, min_count=50, threshold=5, delimiter=b'_')
+
+
+    bigram_phraser = Phraser(bigram)
+
+
+    bigram_list = []
+
+    for sent in minimal_sentence_stream:
+        tokens_ = bigram_phraser[sent]
+
+        
+        for each_bigram in tokens_:
+            if '_' in each_bigram:
+                #print(each_bigram)
+                bigram_list.append(each_bigram)
+        
+
+        # for each_trigram in trigram_tokens_:
+        #     #print(each_trigram)
+        #     if each_trigram.count('_') == 2:
+        #         trigram_list.append(each_trigram)
+
+    #print(len(bigram_list))
+
+
+    stemmed_bigram_count_list = []
+
+    stemmer = RafiStemmer()
+    stemmed_bigram_list = [stemmer.stem_word(each_non_stemmed_bigram) for each_non_stemmed_bigram in bigram_list]
+    for each_unique_stemmed_bigram in set(stemmed_bigram_list):
+        stemmed_bigram_count_list.append([each_unique_stemmed_bigram, stemmed_bigram_list.count(each_unique_stemmed_bigram)])
+
+
+
+    bigram_count_list = []
+
+    for each_unique_bigram in set(bigram_list):
+        bigram_count_list.append([each_unique_bigram, bigram_list.count(each_unique_bigram)])
+
+
+
+
+    with open("non_stemmed_bi_gram_list_with_count.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerows(stemmed_bigram_list)
+        writer.writerows(bigram_count_list)
 
-    with open("test_bow_bigram_non_stemmed.csv", "w", newline="", encoding="utf-8") as f:
+    with open("stemmed_bi_gram_list_with_count.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerows(non_stemmed_bigram_list)
+        writer.writerows(stemmed_bigram_count_list)
 
 
     
