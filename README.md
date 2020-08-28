@@ -1,4 +1,4 @@
-# Bangla Topic Modeling
+# Bangla News Corpus
 
 A research and development project under supervision of
 
